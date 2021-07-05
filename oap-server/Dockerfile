@@ -14,10 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG tag
-ARG version
+ARG commit
 
-FROM apache/skywalking-base:${version}-${tag} AS build
+FROM apache/skywalking-base:dev AS build
 
 WORKDIR skywalking
 

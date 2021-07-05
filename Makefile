@@ -36,14 +36,13 @@ $(COMPLEX_BUILD_TARGETS):
 	$(eval repo := $(call word-dot,$@,1))
 	$(eval imgTag := $(call word-dot,$@,2))
 	pushd $(ROOT)/$(repo) \
-	&& $(D) build $(SW_BUILD_ARGS) --build-arg version=$(SW_VERSION) --build-arg tag=$(imgTag) -t apache/skywalking-$(repo):${SW_VERSION}-${imgTag} . \
+	&& $(D) build $(SW_BUILD_ARGS) --build-arg commit=$(commit) --build-arg tag=$(imgTag) -t dmsolr/skywalking-$(repo):dev-${imgTag} . \
 	&& popd
 
 ui:
 	@echo "Building ui"
 	pushd $(ROOT)/ui \
-	&& $(D) build $(SW_BUILD_ARGS) --build-arg version=$(SW_VERSION) -t apache/skywalking-ui:$(SW_VERSION) . \
-	&& $(D) tag apache/skywalking-ui:$(SW_VERSION) apache/skywalking-ui:latest \
+	&& $(D) build $(SW_BUILD_ARGS) --build-arg commit=$(commit) -t dmsolr/skywalking-ui:dev . \
 	&& popd
 
 
@@ -59,11 +58,10 @@ $(COMPOSE_TARGETS):
 	&& popd
 
 $(foreach TGT,$(COMPLEX_BUILD_TARGETS),$(eval push.$(TGT): ;\
-	$(D) push apache/skywalking-$(call word-dot,$(TGT),1):${SW_VERSION}-$(call word-dot,$(TGT),2) ))
+	$(D) push dmsolr/skywalking-$(call word-dot,$(TGT),1):dev-$(call word-dot,$(TGT),2) ))
 
 push.ui:
-	$(D) push apache/skywalking-ui:$(SW_VERSION) \
-	&& $(D) push  apache/skywalking-ui:latest
+	$(D) push dmsolr/skywalking-ui:dev \
 
 push.java-agent:
 	$(MAKE) -C java-agent push

@@ -16,9 +16,7 @@
 ARG tag
 
 FROM adoptopenjdk/openjdk11:alpine AS base
-ARG version
-RUN echo "Building Apache SkyWalking ${version}"
-ENV SKYWALKING_VERSION=${version}
+ARG commit
 
 FROM base AS es6
 RUN echo "This is the stage that build the es6 image"
@@ -31,8 +29,6 @@ ENV SKYWALKING_TGZ=apache-skywalking-apm-es7-${SKYWALKING_VERSION}.tar.gz
 FROM ${tag} AS build
 
 ENV SKYWALKING_CLI_VERSION=0.6.0
-ENV SKYWALKING_ASC=${SKYWALKING_TGZ}.asc
-ENV SKYWALKING_SHA512=${SKYWALKING_TGZ}.sha512
 ENV SKYWALKING_CLI_TGZ=skywalking-cli-$SKYWALKING_CLI_VERSION-bin.tgz
 ENV SKYWALKING_CLI_ASC=${SKYWALKING_CLI_TGZ}.asc
 ENV SKYWALKING_CLI_SHA512=${SKYWALKING_CLI_TGZ}.sha512
@@ -42,27 +38,6 @@ RUN mkdir -p "${SKYWALKING_HOME}"
 ENV TMPDIR=/tmp/sw
 RUN mkdir -p "${TMPDIR}"
 WORKDIR $TMPDIR
-
-ENV SKYWALKING_TGZ_URLS \
-        https://www.apache.org/dyn/closer.cgi?action=download&filename=skywalking/$SKYWALKING_VERSION/$SKYWALKING_TGZ \
-        # if the version is outdated, we might have to pull from the dist/archive :/
-	    https://www-us.apache.org/dist/skywalking/$SKYWALKING_VERSION/$SKYWALKING_TGZ \
-	    https://www.apache.org/dist/skywalking/$SKYWALKING_VERSION/$SKYWALKING_TGZ \
-	    https://archive.apache.org/dist/skywalking/$SKYWALKING_VERSION/$SKYWALKING_TGZ
-
-ENV SKYWALKING_ASC_URLS \
-        https://www.apache.org/dyn/closer.cgi?action=download&filename=skywalking/$SKYWALKING_VERSION/$SKYWALKING_ASC \
-        # if the version is outdated, we might have to pull from the dist/archive :/
-	    https://www-us.apache.org/dist/skywalking/$SKYWALKING_VERSION/$SKYWALKING_ASC \
-	    https://www.apache.org/dist/skywalking/$SKYWALKING_VERSION/$SKYWALKING_ASC \
-	    https://archive.apache.org/dist/skywalking/$SKYWALKING_VERSION/$SKYWALKING_ASC
-
-ENV SKYWALKING_SHA512_URLS \
-        https://www.apache.org/dyn/closer.cgi?action=download&filename=skywalking/$SKYWALKING_VERSION/$SKYWALKING_SHA512 \
-        # if the version is outdated, we might have to pull from the dist/archive :/
-	    https://www-us.apache.org/dist/skywalking/$SKYWALKING_VERSION/$SKYWALKING_SHA512 \
-	    https://www.apache.org/dist/skywalking/$SKYWALKING_VERSION/$SKYWALKING_SHA512 \
-	    https://archive.apache.org/dist/skywalking/$SKYWALKING_VERSION/$SKYWALKING_SHA512
 
 ENV SKYWALKING_CLI_TGZ_URLS \
         https://www.apache.org/dyn/closer.cgi?action=download&filename=skywalking/cli/$SKYWALKING_CLI_VERSION/$SKYWALKING_CLI_TGZ \
@@ -87,6 +62,12 @@ ENV SKYWALKING_CLI_SHA512_URLS \
 
 RUN set -eux; \
 	\
+	git clone https://github.com/apache/skywalking.git \
+	cd skywalking \
+	./mvnw clean package -DskipTests \
+	tar -xvf ./dist/${SKYWALKING_TGZ} --strip-components=1 -C "${SKYWALKING_HOME}"; \
+    rm -rf "${SKYWALKING_HOME}/bin/"; \
+	\
 	apk add --no-cache --virtual .fetch-deps \
 		gnupg \
 		\
@@ -98,38 +79,6 @@ RUN set -eux; \
 	export GNUPGHOME="$(mktemp -d)"; \
 	gpg --import KEYS; \
 	\
-	success=; \
-	for url in $SKYWALKING_TGZ_URLS; do \
-		if wget --timeout=20  -O ${SKYWALKING_TGZ} "$url"; then \
-			success=1; \
-			break; \
-		fi; \
-	done; \
-	[ -n "$success" ]; \
-	\
-	success=; \
-	for url in $SKYWALKING_SHA512_URLS; do \
-		if wget --timeout=20  -O ${SKYWALKING_SHA512} "$url"; then \
-			success=1; \
-			break; \
-		fi; \
-	done; \
-	[ -n "$success" ]; \
-	\
-	cat ${SKYWALKING_SHA512} | sha512sum -c -; \
-	\
-	success=; \
-	for url in $SKYWALKING_ASC_URLS; do \
-		if wget --timeout=20  -O ${SKYWALKING_ASC} "$url"; then \
-			success=1; \
-			break; \
-		fi; \
-	done; \
-	[ -n "$success" ]; \
-	\
-	gpg --batch --verify ${SKYWALKING_ASC} ${SKYWALKING_TGZ}; \
-	tar -xvf ${SKYWALKING_TGZ} --strip-components=1 -C "${SKYWALKING_HOME}"; \
-	rm -rf "${SKYWALKING_HOME}/bin/"; \
 	success=; \
 	for url in $SKYWALKING_CLI_TGZ_URLS; do \
 		if wget --timeout=20  -O ${SKYWALKING_CLI_TGZ} "$url"; then \
